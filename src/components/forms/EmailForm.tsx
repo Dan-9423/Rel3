@@ -1,7 +1,4 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,16 +12,8 @@ import {
 } from '@/components/ui/form';
 import { Customer } from '@/types/customer';
 import { EmailData } from '@/types/email';
-
-const formSchema = z.object({
-  razaoSocial: z.string().min(1, 'Razão Social é obrigatória'),
-  nomeFantasia: z.string().optional(),
-  cnpj: z.string().min(1, 'CNPJ é obrigatório'),
-  email: z.string().email('E-mail inválido'),
-  telefone: z.string().optional(),
-  numeroNF: z.string().min(1, 'Número da NF é obrigatório'),
-  valorTotal: z.number().min(0, 'Valor não pode ser negativo'),
-});
+import { useForm } from '@/hooks/useForm';
+import { formatCurrency } from '@/lib/utils';
 
 interface EmailFormProps {
   onSubmit: (data: EmailData) => void;
@@ -35,9 +24,15 @@ export default function EmailForm({ onSubmit, customers }: EmailFormProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
+  const {
+    values,
+    handleChange,
+    handleSubmit,
+    reset,
+    errors,
+    isSubmitting
+  } = useForm<EmailData>({
+    initialValues: {
       razaoSocial: '',
       nomeFantasia: '',
       cnpj: '',
@@ -46,30 +41,38 @@ export default function EmailForm({ onSubmit, customers }: EmailFormProps) {
       numeroNF: '',
       valorTotal: 0,
     },
+    validate: (values) => {
+      const errors: Partial<Record<keyof EmailData, string>> = {};
+      
+      if (!values.razaoSocial) {
+        errors.razaoSocial = 'Razão Social é obrigatória';
+      }
+      if (!values.email) {
+        errors.email = 'E-mail é obrigatório';
+      }
+      if (!values.numeroNF) {
+        errors.numeroNF = 'Número da NF é obrigatório';
+      }
+      if (values.valorTotal <= 0) {
+        errors.valorTotal = 'Valor total deve ser maior que zero';
+      }
+
+      return errors;
+    },
+    onSubmit: (values) => {
+      onSubmit(values);
+      reset();
+    }
   });
 
   const handleCustomerSelect = (customer: Customer) => {
-    form.setValue('razaoSocial', customer.razaoSocial);
-    form.setValue('nomeFantasia', customer.nomeFantasia);
-    form.setValue('cnpj', customer.cnpj);
-    form.setValue('email', customer.email);
-    form.setValue('telefone', customer.telefone || '');
+    handleChange('razaoSocial', customer.razaoSocial);
+    handleChange('nomeFantasia', customer.nomeFantasia);
+    handleChange('cnpj', customer.cnpj);
+    handleChange('email', customer.email);
+    handleChange('telefone', customer.telefone || '');
     setShowCustomerSearch(false);
     setSearchQuery('');
-  };
-
-  const formatCurrency = (value: string) => {
-    // Remove tudo exceto números
-    let numbers = value.replace(/\D/g, '');
-    
-    // Converte para número e divide por 100 para considerar centavos
-    const amount = parseFloat(numbers) / 100;
-    
-    // Formata o número
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(amount);
   };
 
   const handleCurrencyInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,7 +84,7 @@ export default function EmailForm({ onSubmit, customers }: EmailFormProps) {
     // Se o valor estiver vazio, define como R$ 0,00
     if (!value) {
       e.target.value = 'R$ 0,00';
-      form.setValue('valorTotal', 0);
+      handleChange('valorTotal', 0);
       return;
     }
     
@@ -95,11 +98,11 @@ export default function EmailForm({ onSubmit, customers }: EmailFormProps) {
     const reais = cents / 100;
     
     // Formata o valor
-    const formatted = formatCurrency(numericValue);
+    const formatted = formatCurrency(reais);
     e.target.value = formatted;
     
     // Atualiza o valor no formulário
-    form.setValue('valorTotal', reais);
+    handleChange('valorTotal', reais);
   };
 
   const filteredCustomers = customers.filter(customer =>
@@ -111,8 +114,8 @@ export default function EmailForm({ onSubmit, customers }: EmailFormProps) {
   );
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <Form>
+      <form onSubmit={handleSubmit} className="space-y-6">
         <div className="relative">
           <Input
             type="text"
@@ -146,98 +149,111 @@ export default function EmailForm({ onSubmit, customers }: EmailFormProps) {
 
         <div className="grid grid-cols-2 gap-6">
           <FormField
-            control={form.control}
             name="razaoSocial"
-            render={({ field }) => (
+            render={() => (
               <FormItem>
                 <FormLabel>Razão Social</FormLabel>
                 <FormControl>
-                  <Input {...field} readOnly />
+                  <Input
+                    value={values.razaoSocial}
+                    onChange={(e) => handleChange('razaoSocial', e.target.value)}
+                    readOnly
+                  />
                 </FormControl>
-                <FormMessage />
+                {errors.razaoSocial && <FormMessage>{errors.razaoSocial}</FormMessage>}
               </FormItem>
             )}
           />
 
           <FormField
-            control={form.control}
             name="nomeFantasia"
-            render={({ field }) => (
+            render={() => (
               <FormItem>
                 <FormLabel>Nome Fantasia</FormLabel>
                 <FormControl>
-                  <Input {...field} readOnly />
+                  <Input
+                    value={values.nomeFantasia}
+                    onChange={(e) => handleChange('nomeFantasia', e.target.value)}
+                    readOnly
+                  />
                 </FormControl>
-                <FormMessage />
               </FormItem>
             )}
           />
 
           <FormField
-            control={form.control}
             name="cnpj"
-            render={({ field }) => (
+            render={() => (
               <FormItem>
                 <FormLabel>CNPJ</FormLabel>
                 <FormControl>
-                  <Input {...field} readOnly />
+                  <Input
+                    value={values.cnpj}
+                    onChange={(e) => handleChange('cnpj', e.target.value)}
+                    readOnly
+                  />
                 </FormControl>
-                <FormMessage />
               </FormItem>
             )}
           />
 
           <FormField
-            control={form.control}
             name="email"
-            render={({ field }) => (
+            render={() => (
               <FormItem>
                 <FormLabel>E-mail</FormLabel>
                 <FormControl>
-                  <Input {...field} type="email" readOnly />
+                  <Input
+                    value={values.email}
+                    onChange={(e) => handleChange('email', e.target.value)}
+                    type="email"
+                    readOnly
+                  />
                 </FormControl>
-                <FormMessage />
+                {errors.email && <FormMessage>{errors.email}</FormMessage>}
               </FormItem>
             )}
           />
 
           <FormField
-            control={form.control}
             name="numeroNF"
-            render={({ field }) => (
+            render={() => (
               <FormItem>
                 <FormLabel>Número da NF</FormLabel>
                 <FormControl>
-                  <Input {...field} />
+                  <Input
+                    value={values.numeroNF}
+                    onChange={(e) => handleChange('numeroNF', e.target.value)}
+                  />
                 </FormControl>
-                <FormMessage />
+                {errors.numeroNF && <FormMessage>{errors.numeroNF}</FormMessage>}
               </FormItem>
             )}
           />
 
           <FormField
-            control={form.control}
             name="telefone"
-            render={({ field }) => (
+            render={() => (
               <FormItem>
                 <FormLabel>Telefone</FormLabel>
                 <FormControl>
-                  <Input {...field} readOnly />
+                  <Input
+                    value={values.telefone}
+                    onChange={(e) => handleChange('telefone', e.target.value)}
+                    readOnly
+                  />
                 </FormControl>
-                <FormMessage />
               </FormItem>
             )}
           />
 
           <FormField
-            control={form.control}
             name="valorTotal"
-            render={({ field: { onChange, value, ...field } }) => (
+            render={() => (
               <FormItem className="col-span-2">
                 <FormLabel>Valor Total</FormLabel>
                 <FormControl>
                   <Input
-                    {...field}
                     onChange={handleCurrencyInput}
                     onFocus={(e) => {
                       if (e.target.value === 'R$ 0,00') {
@@ -248,13 +264,13 @@ export default function EmailForm({ onSubmit, customers }: EmailFormProps) {
                     placeholder="R$ 0,00"
                   />
                 </FormControl>
-                <FormMessage />
+                {errors.valorTotal && <FormMessage>{errors.valorTotal}</FormMessage>}
               </FormItem>
             )}
           />
         </div>
 
-        <Button type="submit" className="w-full">
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
           Visualizar E-mail
         </Button>
       </form>
