@@ -1,4 +1,7 @@
 import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -11,7 +14,23 @@ import {
 } from '@/components/ui/form';
 import { Customer } from '@/types/customer';
 import { formatCNPJ, formatPhone } from '@/lib/utils';
-import { useForm } from '@/hooks/useForm';
+
+const formSchema = z.object({
+  razaoSocial: z.string().min(1, 'Razão Social é obrigatória'),
+  nomeFantasia: z.string().min(1, 'Nome Fantasia é obrigatório'),
+  cnpj: z.string().min(14, 'CNPJ inválido'),
+  email: z.string().email('E-mail inválido'),
+  telefone: z.string().min(10, 'Telefone inválido').optional(),
+  endereco: z.object({
+    logradouro: z.string().optional(),
+    numero: z.string().optional(),
+    complemento: z.string().optional(),
+    bairro: z.string().optional(),
+    cidade: z.string().optional(),
+    estado: z.string().optional(),
+    cep: z.string().optional(),
+  }).optional(),
+});
 
 interface CustomerFormProps {
   onSubmit: (data: Customer) => void;
@@ -19,16 +38,9 @@ interface CustomerFormProps {
 }
 
 export default function CustomerForm({ onSubmit, initialData }: CustomerFormProps) {
-  const {
-    values,
-    handleChange,
-    handleSubmit,
-    reset,
-    errors,
-    isSubmitting
-  } = useForm<Customer>({
-    initialValues: {
-      id: '',
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
       razaoSocial: '',
       nomeFantasia: '',
       cnpj: '',
@@ -44,131 +56,104 @@ export default function CustomerForm({ onSubmit, initialData }: CustomerFormProp
         cep: '',
       },
     },
-    validate: (values) => {
-      const errors: Partial<Record<keyof Customer, string>> = {};
-      
-      if (!values.razaoSocial) {
-        errors.razaoSocial = 'Razão Social é obrigatória';
-      }
-      if (!values.nomeFantasia) {
-        errors.nomeFantasia = 'Nome Fantasia é obrigatório';
-      }
-      if (!values.cnpj || values.cnpj.replace(/\D/g, '').length !== 14) {
-        errors.cnpj = 'CNPJ inválido';
-      }
-      if (!values.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
-        errors.email = 'E-mail inválido';
-      }
-      if (values.telefone && values.telefone.replace(/\D/g, '').length < 10) {
-        errors.telefone = 'Telefone inválido';
-      }
-
-      return errors;
-    },
-    onSubmit
   });
 
   useEffect(() => {
     if (initialData) {
-      reset(initialData);
+      form.reset(initialData);
     }
-  }, [initialData]);
+  }, [initialData, form]);
 
   const handleCNPJChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, '');
-    handleChange('cnpj', formatCNPJ(value));
+    form.setValue('cnpj', formatCNPJ(value));
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, '');
-    handleChange('telefone', formatPhone(value));
+    form.setValue('telefone', formatPhone(value));
   };
 
   return (
-    <Form>
-      <form id="customer-form" onSubmit={handleSubmit} className="space-y-6">
+    <Form {...form}>
+      <form id="customer-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="grid grid-cols-2 gap-6">
           <FormField
+            control={form.control}
             name="razaoSocial"
-            render={() => (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel>Razão Social</FormLabel>
                 <FormControl>
-                  <Input
-                    value={values.razaoSocial}
-                    onChange={(e) => handleChange('razaoSocial', e.target.value)}
-                  />
+                  <Input {...field} />
                 </FormControl>
-                {errors.razaoSocial && <FormMessage>{errors.razaoSocial}</FormMessage>}
+                <FormMessage />
               </FormItem>
             )}
           />
 
           <FormField
+            control={form.control}
             name="nomeFantasia"
-            render={() => (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel>Nome Fantasia</FormLabel>
                 <FormControl>
-                  <Input
-                    value={values.nomeFantasia}
-                    onChange={(e) => handleChange('nomeFantasia', e.target.value)}
-                  />
+                  <Input {...field} />
                 </FormControl>
-                {errors.nomeFantasia && <FormMessage>{errors.nomeFantasia}</FormMessage>}
+                <FormMessage />
               </FormItem>
             )}
           />
 
           <FormField
+            control={form.control}
             name="cnpj"
-            render={() => (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel>CNPJ</FormLabel>
                 <FormControl>
                   <Input
-                    value={values.cnpj}
+                    {...field}
                     onChange={handleCNPJChange}
                     maxLength={18}
                     placeholder="00.000.000/0000-00"
                   />
                 </FormControl>
-                {errors.cnpj && <FormMessage>{errors.cnpj}</FormMessage>}
+                <FormMessage />
               </FormItem>
             )}
           />
 
           <FormField
+            control={form.control}
             name="telefone"
-            render={() => (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel>Telefone</FormLabel>
                 <FormControl>
                   <Input
-                    value={values.telefone}
+                    {...field}
                     onChange={handlePhoneChange}
                     maxLength={15}
                     placeholder="(00) 00000-0000"
                   />
                 </FormControl>
-                {errors.telefone && <FormMessage>{errors.telefone}</FormMessage>}
+                <FormMessage />
               </FormItem>
             )}
           />
 
           <FormField
+            control={form.control}
             name="email"
-            render={() => (
+            render={({ field }) => (
               <FormItem>
                 <FormLabel>E-mail</FormLabel>
                 <FormControl>
-                  <Input
-                    value={values.email}
-                    onChange={(e) => handleChange('email', e.target.value)}
-                    type="email"
-                  />
+                  <Input {...field} type="email" />
                 </FormControl>
-                {errors.email && <FormMessage>{errors.email}</FormMessage>}
+                <FormMessage />
               </FormItem>
             )}
           />
@@ -178,109 +163,99 @@ export default function CustomerForm({ onSubmit, initialData }: CustomerFormProp
           <h3 className="text-lg font-medium">Endereço (Opcional)</h3>
           <div className="grid grid-cols-2 gap-6">
             <FormField
+              control={form.control}
               name="endereco.logradouro"
-              render={() => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Logradouro</FormLabel>
                   <FormControl>
-                    <Input
-                      value={values.endereco?.logradouro}
-                      onChange={(e) => handleChange('endereco.logradouro', e.target.value)}
-                    />
+                    <Input {...field} />
                   </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
 
             <FormField
+              control={form.control}
               name="endereco.numero"
-              render={() => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Número</FormLabel>
                   <FormControl>
-                    <Input
-                      value={values.endereco?.numero}
-                      onChange={(e) => handleChange('endereco.numero', e.target.value)}
-                    />
+                    <Input {...field} />
                   </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
 
             <FormField
+              control={form.control}
               name="endereco.complemento"
-              render={() => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Complemento</FormLabel>
                   <FormControl>
-                    <Input
-                      value={values.endereco?.complemento}
-                      onChange={(e) => handleChange('endereco.complemento', e.target.value)}
-                    />
+                    <Input {...field} />
                   </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
 
             <FormField
+              control={form.control}
               name="endereco.bairro"
-              render={() => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Bairro</FormLabel>
                   <FormControl>
-                    <Input
-                      value={values.endereco?.bairro}
-                      onChange={(e) => handleChange('endereco.bairro', e.target.value)}
-                    />
+                    <Input {...field} />
                   </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
 
             <FormField
+              control={form.control}
               name="endereco.cidade"
-              render={() => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Cidade</FormLabel>
                   <FormControl>
-                    <Input
-                      value={values.endereco?.cidade}
-                      onChange={(e) => handleChange('endereco.cidade', e.target.value)}
-                    />
+                    <Input {...field} />
                   </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
 
             <FormField
+              control={form.control}
               name="endereco.estado"
-              render={() => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Estado</FormLabel>
                   <FormControl>
-                    <Input
-                      value={values.endereco?.estado}
-                      onChange={(e) => handleChange('endereco.estado', e.target.value)}
-                      maxLength={2}
-                    />
+                    <Input {...field} maxLength={2} />
                   </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
 
             <FormField
+              control={form.control}
               name="endereco.cep"
-              render={() => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>CEP</FormLabel>
                   <FormControl>
-                    <Input
-                      value={values.endereco?.cep}
-                      onChange={(e) => handleChange('endereco.cep', e.target.value)}
-                      maxLength={8}
-                      placeholder="00000-000"
-                    />
+                    <Input {...field} maxLength={8} placeholder="00000-000" />
                   </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -288,7 +263,7 @@ export default function CustomerForm({ onSubmit, initialData }: CustomerFormProp
         </div>
 
         {!initialData && (
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
+          <Button type="submit" className="w-full">
             Cadastrar Sacado
           </Button>
         )}
