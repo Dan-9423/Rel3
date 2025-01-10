@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Minus, LayoutDashboard, Users, Settings, BarChart2, FileText, LogOut, Home, ChevronLeft, ChevronRight, Factory, TextQuote, ListTodo } from 'lucide-react';
+import { Plus, Minus, LayoutDashboard, Settings, BarChart2, FileText, LogOut, Home, ChevronLeft, ChevronRight, Factory, TextQuote, ListTodo } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
@@ -100,30 +100,7 @@ export default function Sidebar() {
       title: 'Número por Extenso',
       icon: <TextQuote className="w-5 h-5" />,
       path: '/numero-extenso'
-    },
-    {
-      title: 'Users',
-      icon: <Users className="w-5 h-5" />,
-      submenu: [
-        { title: 'All Users', path: '/users' },
-        { title: 'User Groups', path: '/user-groups' },
-        { title: 'Permissions', path: '/permissions' },
-      ],
-    },
-    {
-      title: 'Analytics',
-      icon: <BarChart2 className="w-5 h-5" />,
-      submenu: [
-        { title: 'Statistics', path: '/statistics' },
-        { title: 'Performance', path: '/performance' },
-        { title: 'Metrics', path: '/metrics' },
-      ],
-    },
-    {
-      title: 'Settings',
-      icon: <Settings className="w-5 h-5" />,
-      path: '/settings'
-    },
+    }
   ];
 
   return (
